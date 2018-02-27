@@ -4,6 +4,27 @@ from games.models import Game
 from games.models import Player
 from games.models import PlayerScore
 import games.views
+from django.contrib.auth.models import User
+
+
+class UserGameSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Game
+        fields = (
+            'url',
+            'name')
+
+
+class UserSerializer(serializers.HyperlinkedModelSerializer):
+    games = UserGameSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = User
+        fields = (
+            'url',
+            'pk',
+            'username',
+            'games')
 
 
 class GameCategorySerializer(serializers.HyperlinkedModelSerializer):
@@ -21,7 +42,9 @@ class GameCategorySerializer(serializers.HyperlinkedModelSerializer):
             'games')
 
 
-class GameSerializer(serializers.ModelSerializer):
+class GameSerializer(serializers.HyperlinkedModelSerializer):
+    # We want to display the owner username (read-only)
+    owner = serializers.ReadOnlyField(source='owner.username')
     # We want to display the game category's name instead of the id
     game_category = serializers.SlugRelatedField(
                         queryset=GameCategory.objects.all(),
@@ -29,15 +52,17 @@ class GameSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Game
+        depth = 4
         fields = (
             'url',
+            'owner',
             'game_category',
             'name',
             'release_date',
             'played')
 
 
-class ScoreSerializer(serializers.ModelSerializer):
+class ScoreSerializer(serializers.HyperlinkedModelSerializer):
     # We want to display all the details for the game
     game = GameSerializer()
     # We don't include the player because it will be nested in the player
@@ -53,7 +78,7 @@ class ScoreSerializer(serializers.ModelSerializer):
         )
 
 
-class PlayerSerializer(serializers.ModelSerializer):
+class PlayerSerializer(serializers.HyperlinkedModelSerializer):
     scores = ScoreSerializer(many=True, read_only=True)
     gender = serializers.ChoiceField(
         choices=Player.GENDER_CHOICES)
